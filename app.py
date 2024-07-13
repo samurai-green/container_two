@@ -4,48 +4,53 @@ import csv
 
 app = Flask(__name__)
 
-# Path to the directory where files will be stored
-PERSISTENT_STORAGE_PATH = '/home/ghost/app/persistent_storage'
+# Directory where files will be stored
+STORAGE_DIR = '/persistent_storage'
 
-if not os.path.exists(PERSISTENT_STORAGE_PATH):
-    os.makedirs(PERSISTENT_STORAGE_PATH)
+# Ensure the storage directory exists
+if not os.path.exists(STORAGE_DIR):
+    os.makedirs(STORAGE_DIR)
 
-def calculate_product_sum(filename, product):
-    filepath = os.path.join(PERSISTENT_STORAGE_PATH, filename)
-    if not os.path.exists(filepath):
-        return None, "File not found."
+@app.route('/')
+def home():
+    return "Welcome to Microservice 2"
+
+@app.route('/calculate', methods=['POST'])
+def calculate():
+    data = request.get_json()
+    file_name = data.get('file')
+    product = data.get('product')
+
+    # Check if file name is provided
+    if not file_name or not product:
+        return jsonify({"file": file_name, "error": "Invalid JSON input."}), 400
+
+    file_path = os.path.join(STORAGE_DIR, file_name)
+
+    # Check if file exists
+    if not os.path.exists(file_path):
+        return jsonify({"file": file_name, "error": "File not found."}), 404
 
     try:
-        total_sum = 0
-        with open(filepath, 'r') as file:
-            reader = csv.DictReader(file)
+        # Calculate the sum at the start of the request processing
+        total = 0
+        with open(file_path, 'r') as f:
+            reader = csv.DictReader(f)
+            # Trim whitespaces from headers
+            reader.fieldnames = [field.strip() for field in reader.fieldnames]
+            print(f"CSV Headers: {reader.fieldnames}")  # Debugging statement
+            # Check for required headers in CSV file
+            if 'product' not in reader.fieldnames or 'amount' not in reader.fieldnames:
+                return jsonify({"file": file_name, "error": "Input file not in CSV format."}), 400
             for row in reader:
                 if row['product'] == product:
-                    total_sum += int(row[' amount '])
-        return total_sum, None
+                    total += int(row['amount'])
+        print(f"File: {file_name}, Sum: {total}")  # Output the file name and sum
+        # Return the sum along with the file name
+        return jsonify({"file": file_name, "sum": total}), 200
     except Exception as e:
-        return None, f"Input file not in CSV format: {str(e)}"
+        print(f"Exception: {e}")  # Debugging statement
+        return jsonify({"file": file_name, "error": str(e)}), 500
 
-@app.route('/calculate-sum', methods=['POST'])
-def calculate_sum():
-    try:
-        request_data = request.get_json()
-        filename = request_data.get('file')
-        product = request_data.get('product')
-        
-        if not filename or not product:
-            return jsonify({"file": filename, "error": "Invalid JSON input."}), 400
-        
-        total_sum, error = calculate_product_sum(filename, product)
-        
-        if error:
-            return jsonify({"file": filename, "error": error}), 500
-        
-        return jsonify({"file": filename, "sum": total_sum}), 200
-    
-    except Exception as e:
-        return jsonify({"file": None, "error": str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=4000)
-
+if __name__ == '_main_':
+    app.run(host='0.0.0.0', port=5001)
