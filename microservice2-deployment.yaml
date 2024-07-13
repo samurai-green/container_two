@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: microservice2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: microservice2
+  template:
+    metadata:
+      labels:
+        app: microservice2
+    spec:
+      containers:
+      - name: microservice2
+        image: us-central1-docker.pkg.dev/kubernetes-assignment-429023/kuber-repo/microservice2:latest
+        ports:
+        - containerPort: 5001
+        volumeMounts:
+        - name: persistent-storage
+          mountPath: /persistent_storage
+      volumes:
+      - name: persistent-storage
+        persistentVolumeClaim:
+          claimName: k8s-pvc
